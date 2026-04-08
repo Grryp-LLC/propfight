@@ -120,7 +120,7 @@ def extract_with_gemini(html: str, property_id: str) -> dict | None:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemma-4-31b-it",
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0,
