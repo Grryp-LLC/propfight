@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  property_id       String   @id
+  geo_id            String?
+  owner_name        String?
+  situs_address     String?
+  situs_city        String?
+  situs_zip         String?
+  legal_description String?
+  acres             Decimal?
+  land_sqft         Int?
+  improvement_sqft  Int?
+  year_built        Int?
+  building_class    String?
+  subdivision       String?
+  cad               String?  @default("PARKERCAD")
+  scraped_at        DateTime? @db.Timestamptz
+  updated_at        DateTime? @default(now()) @db.Timestamptz
+
+  values     PropertyValue[]
+  sales      PropertySale[]
+  exemptions PropertyExemption[]
+
+  @@map("properties")
+}
+
+model PropertyValue {
+  id                Int      @id @default(autoincrement())
+  property_id       String
+  year              Int
+  land_value        Decimal?
+  improvement_value Decimal?
+  total_appraised   Decimal?
+  market_value      Decimal?
+  total_taxable     Decimal?
+
+  property Property @relation(fields: [property_id], references: [property_id])
+
+  @@unique([property_id, year])
+  @@map("property_values")
+}
+
+model PropertySale {
+  id          Int       @id @default(autoincrement())
+  property_id String
+  grantor     String?
+  grantee     String?
+  sale_date   DateTime? @db.Date
+  deed_vol    String?
+  deed_page   String?
+  sale_price  Decimal?
+
+  property Property @relation(fields: [property_id], references: [property_id])
+
+  @@map("property_sales")
+}
+
+model PropertyExemption {
+  id               Int      @id @default(autoincrement())
+  property_id      String
+  year             Int?
+  exemption_type   String?
+  exemption_amount Decimal?
+
+  property Property @relation(fields: [property_id], references: [property_id])
+
+  @@map("property_exemptions")
+}
