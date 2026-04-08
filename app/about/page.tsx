@@ -47,13 +47,13 @@ export default function AboutPage() {
           </p>
 
           <h2 className="text-2xl font-bold text-gray-900 mt-10 mb-4">
-            The &ldquo;Unequal Appraisal&rdquo; Argument
+            The &quot;Unequal Appraisal&quot; Argument
           </h2>
           <p>
             The most powerful protest strategy is <strong>unequal appraisal</strong>
-            (also called &ldquo;equity&rdquo;). This argument says: &ldquo;My property is
+            (also called &quot;equity&quot;). This argument says: &quot;My property is
             assessed at a higher value per square foot than comparable properties
-            in my area.&rdquo;
+            in my area.&quot;
           </p>
           <p>
             This works because Texas law requires that properties be appraised
@@ -67,19 +67,19 @@ export default function AboutPage() {
           </h2>
           <ol className="list-decimal list-inside space-y-3">
             <li>
-              <strong>Find your property</strong> — We pull your current
+              <strong>Find your property</strong> -- We pull your current
               appraisal data from the Parker County Appraisal District (PCAD).
             </li>
             <li>
-              <strong>Identify comparables</strong> — We find 10-20 similar
+              <strong>Identify comparables</strong> -- We find 10-20 similar
               properties in your area (same subdivision, similar size and age).
             </li>
             <li>
-              <strong>Calculate your $/sqft</strong> — We compare your assessed
+              <strong>Calculate your $/sqft</strong> -- We compare your assessed
               value per square foot against the median of comparable properties.
             </li>
             <li>
-              <strong>Generate your protest packet</strong> — Download a
+              <strong>Generate your protest packet</strong> -- Download a
               ready-to-present analysis showing the unequal appraisal with
               specific comparable properties and data.
             </li>
@@ -139,7 +139,7 @@ export default function AboutPage() {
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
           <p>
             &copy; {new Date().getFullYear()} PropFight. For informational
-            purposes only — not legal or tax advice.
+            purposes only -- not legal or tax advice.
           </p>
         </div>
       </footer>

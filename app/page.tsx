@@ -61,7 +61,7 @@ export default function Home() {
           <span className="text-[#dc2626]">Overappraised</span>?
         </h1>
         <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-          Texas homeowners can save hundreds — even thousands — per year by
+          Texas homeowners can save hundreds -- even thousands -- per year by
           protesting their property tax appraisal. Find out if you&apos;re
           paying too much.
         </p>
@@ -154,7 +154,7 @@ export default function Home() {
             <div>
               <p className="text-4xl font-bold text-gray-900">Free</p>
               <p className="text-gray-600 mt-2">
-                To file a protest — no lawyer needed
+                To file a protest -- no lawyer needed
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function Home() {
           </p>
           <p className="mt-2">
             &copy; {new Date().getFullYear()} PropFight. For informational
-            purposes only — not legal or tax advice.
+            purposes only -- not legal or tax advice.
           </p>
         </div>
       </footer>

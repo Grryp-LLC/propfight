@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { query } from "@/lib/db";
 import {
   findComparables,
   calculateProtestValue,
@@ -14,76 +14,77 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const dbProperty = await prisma.property.findUnique({
-    where: { property_id: id },
-    include: {
-      values: { orderBy: { year: "desc" }, take: 1 },
-    },
-  });
+  const propResult = await query(
+    `SELECT p.*, pv.year, pv.land_value, pv.improvement_value,
+            pv.total_appraised, pv.market_value
+     FROM properties p
+     LEFT JOIN property_values pv ON p.property_id = pv.property_id
+     WHERE p.property_id = $1
+     ORDER BY pv.year DESC
+     LIMIT 1`,
+    [id]
+  );
 
-  if (!dbProperty) {
+  if (propResult.rows.length === 0) {
     return NextResponse.json({ error: "Property not found" }, { status: 404 });
   }
 
-  const latestValue = dbProperty.values[0];
-  if (!latestValue) {
-    return NextResponse.json(
-      { error: "No value data available" },
-      { status: 404 }
-    );
+  const row = propResult.rows[0];
+  if (!row.total_appraised) {
+    return NextResponse.json({ error: "No value data available" }, { status: 404 });
   }
 
   const subject: Property = {
-    property_id: dbProperty.property_id,
-    situs_address: dbProperty.situs_address || "",
-    situs_city: dbProperty.situs_city,
-    subdivision: dbProperty.subdivision,
-    improvement_sqft: dbProperty.improvement_sqft || 0,
-    year_built: dbProperty.year_built,
-    building_class: dbProperty.building_class,
-    total_appraised: Number(latestValue.total_appraised) || 0,
-    land_value: Number(latestValue.land_value) || 0,
-    improvement_value: Number(latestValue.improvement_value) || 0,
+    property_id: row.property_id,
+    situs_address: row.situs_address || "",
+    situs_city: row.situs_city,
+    subdivision: row.subdivision,
+    improvement_sqft: row.improvement_sqft || 0,
+    year_built: row.year_built,
+    building_class: row.building_class,
+    total_appraised: Number(row.total_appraised) || 0,
+    land_value: Number(row.land_value) || 0,
+    improvement_value: Number(row.improvement_value) || 0,
   };
 
-  const compCandidates = await prisma.property.findMany({
-    where: {
-      property_id: { not: id },
-      improvement_sqft: { gt: 0 },
-      ...(dbProperty.subdivision
-        ? { subdivision: dbProperty.subdivision }
-        : {}),
-    },
-    include: {
-      values: { where: { year: latestValue.year }, take: 1 },
-    },
-    take: 500,
-  });
+  const compsResult = await query(
+    `SELECT p.property_id, p.situs_address, p.situs_city, p.subdivision,
+            p.improvement_sqft, p.year_built, p.building_class,
+            pv.land_value, pv.improvement_value, pv.total_appraised
+     FROM properties p
+     JOIN property_values pv ON p.property_id = pv.property_id AND pv.year = $1
+     WHERE p.subdivision = $2
+       AND p.property_id != $3
+       AND p.improvement_sqft > 0
+       AND pv.total_appraised > 0
+     LIMIT 500`,
+    [row.year, row.subdivision, id]
+  );
 
-  const allProperties: Property[] = compCandidates
-    .filter((p) => p.values.length > 0)
-    .map((p) => ({
-      property_id: p.property_id,
-      situs_address: p.situs_address || "",
-      situs_city: p.situs_city,
-      subdivision: p.subdivision,
-      improvement_sqft: p.improvement_sqft || 0,
-      year_built: p.year_built,
-      building_class: p.building_class,
-      total_appraised: Number(p.values[0].total_appraised) || 0,
-      land_value: Number(p.values[0].land_value) || 0,
-      improvement_value: Number(p.values[0].improvement_value) || 0,
-    }));
+  const allProperties: Property[] = compsResult.rows.map((r: Record<string, unknown>) => ({
+    property_id: r.property_id as string,
+    situs_address: (r.situs_address as string) || "",
+    situs_city: r.situs_city as string | null,
+    subdivision: r.subdivision as string | null,
+    improvement_sqft: r.improvement_sqft as number,
+    year_built: r.year_built as number | null,
+    building_class: r.building_class as string | null,
+    total_appraised: Number(r.total_appraised),
+    land_value: Number(r.land_value),
+    improvement_value: Number(r.improvement_value),
+  }));
 
   const comps = findComparables(subject, allProperties);
-  const analysis =
-    comps.length > 0 ? calculateProtestValue(subject, comps) : null;
+  const analysis = comps.length > 0 ? calculateProtestValue(subject, comps) : null;
+
+  const property = row;
+  const latestValue = { year: row.year, total_appraised: row.total_appraised };
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Property Tax Protest - ${dbProperty.situs_address}</title>
+  <title>Property Tax Protest - ${property.situs_address}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
@@ -110,99 +111,77 @@ export async function GET(
   <div class="no-print" style="background:#1a56db;color:white;padding:12px 20px;margin:-40px -40px 24px;text-align:center;">
     <button onclick="window.print()" style="background:white;color:#1a56db;border:none;padding:8px 24px;border-radius:4px;font-weight:bold;cursor:pointer;">Print / Save as PDF</button>
   </div>
-
   <div class="header">
     <h1>Property Tax Protest Packet</h1>
-    <p>Prepared for ARB Hearing &mdash; Parker County Appraisal District</p>
+    <p>Prepared for ARB Hearing -- Parker County Appraisal District</p>
     <p>Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
   </div>
-
   <h2>Subject Property</h2>
   <dl class="info-grid">
-    <dt>Address</dt><dd>${dbProperty.situs_address}, ${dbProperty.situs_city || "Weatherford"}, TX ${dbProperty.situs_zip || ""}</dd>
-    <dt>Property ID</dt><dd>${dbProperty.property_id}</dd>
-    <dt>Subdivision</dt><dd>${dbProperty.subdivision || "N/A"}</dd>
-    <dt>Year Built</dt><dd>${dbProperty.year_built || "N/A"}</dd>
-    <dt>Improvement Sq Ft</dt><dd>${dbProperty.improvement_sqft?.toLocaleString() || "N/A"}</dd>
+    <dt>Address</dt><dd>${property.situs_address}, ${property.situs_city || "Weatherford"}, TX ${property.situs_zip || ""}</dd>
+    <dt>Property ID</dt><dd>${property.property_id}</dd>
+    <dt>Subdivision</dt><dd>${property.subdivision || "N/A"}</dd>
+    <dt>Year Built</dt><dd>${property.year_built || "N/A"}</dd>
+    <dt>Improvement Sq Ft</dt><dd>${property.improvement_sqft?.toLocaleString() || "N/A"}</dd>
     <dt>Total Appraised (${latestValue.year})</dt><dd>${formatCurrency(Number(latestValue.total_appraised))}</dd>
     <dt>Assessed $/Sq Ft</dt><dd>${analysis ? formatPerSqft(analysis.subjectPPSF) : "N/A"}</dd>
   </dl>
-
   <h2>Basis of Protest: Unequal Appraisal</h2>
   <div class="basis">
-    <p>Pursuant to Texas Property Tax Code &sect;41.43(b)(3), this protest is based on <strong>unequal appraisal</strong>.
-    The subject property&rsquo;s appraised value per square foot is higher than the median of comparable properties
+    <p>Pursuant to Texas Property Tax Code S41.43(b)(3), this protest is based on <strong>unequal appraisal</strong>.
+    The subject property's appraised value per square foot is higher than the median of comparable properties
     in the same area, indicating the property is not appraised equally and uniformly.</p>
     ${analysis ? `
-    <p style="margin-top:12px;"><strong>Subject property assessed value per sq ft:</strong> ${formatPerSqft(analysis.subjectPPSF)}</p>
-    <p><strong>Median of ${analysis.comparables.length} comparable properties:</strong> ${formatPerSqft(analysis.medianCompPPSF)}</p>
-    <p><strong>Suggested appraised value:</strong> ${formatCurrency(analysis.suggestedValue)} (${formatPerSqft(analysis.medianCompPPSF)} &times; ${subject.improvement_sqft.toLocaleString()} sq ft)</p>
+    <p style="margin-top:12px;"><strong>Subject assessed $/sqft:</strong> ${formatPerSqft(analysis.subjectPPSF)}</p>
+    <p><strong>Median of ${analysis.comparables.length} comps:</strong> ${formatPerSqft(analysis.medianCompPPSF)}</p>
+    <p><strong>Suggested value:</strong> ${formatCurrency(analysis.suggestedValue)} (${formatPerSqft(analysis.medianCompPPSF)} x ${subject.improvement_sqft.toLocaleString()} sqft)</p>
     ` : "<p>Insufficient comparable data available.</p>"}
   </div>
-
   ${analysis && analysis.isOverappraised ? `
   <div class="savings">
     <p>Potential Appraisal Reduction</p>
     <p class="amount">${formatCurrency(analysis.potentialReduction)}</p>
-    <p style="font-size:14px;color:#666;">Estimated annual tax savings: ${formatCurrency(analysis.estimatedTaxSavings)} (at 2.5% effective rate)</p>
-  </div>
-  ` : ""}
-
+    <p style="font-size:14px;color:#666;">Est. annual tax savings: ${formatCurrency(analysis.estimatedTaxSavings)} (at 2.5% effective rate)</p>
+  </div>` : ""}
   ${analysis ? `
   <h2>Comparable Properties Analysis</h2>
   <table>
-    <thead>
-      <tr>
-        <th>Address</th>
-        <th>Sq Ft</th>
-        <th>Year Built</th>
-        <th>Total Appraised</th>
-        <th>$/Sq Ft</th>
-      </tr>
-    </thead>
+    <thead><tr><th>Address</th><th>Sq Ft</th><th>Year Built</th><th>Total Appraised</th><th>$/Sq Ft</th></tr></thead>
     <tbody>
       <tr class="highlight">
-        <td>${dbProperty.situs_address} (SUBJECT)</td>
+        <td>${property.situs_address} (SUBJECT)</td>
         <td class="num">${subject.improvement_sqft.toLocaleString()}</td>
-        <td class="num">${dbProperty.year_built || "&mdash;"}</td>
+        <td class="num">${property.year_built || "--"}</td>
         <td class="num">${formatCurrency(subject.total_appraised)}</td>
         <td class="num">${formatPerSqft(analysis.subjectPPSF)}</td>
       </tr>
-      ${analysis.comparables.map((c) => `
-      <tr>
+      ${analysis.comparables.map((c) => `<tr>
         <td>${c.situs_address}</td>
         <td class="num">${c.improvement_sqft.toLocaleString()}</td>
-        <td class="num">${c.year_built || "&mdash;"}</td>
+        <td class="num">${c.year_built || "--"}</td>
         <td class="num">${formatCurrency(c.total_appraised)}</td>
         <td class="num">${formatPerSqft(c.assessed_per_sqft)}</td>
       </tr>`).join("")}
     </tbody>
   </table>
-  <p style="font-size:13px;color:#666;margin-top:8px;">
-    Median $/sq ft of comparables: ${formatPerSqft(analysis.medianCompPPSF)} |
-    Mean $/sq ft of comparables: ${formatPerSqft(analysis.meanCompPPSF)}
-  </p>
+  <p style="font-size:13px;color:#666;margin-top:8px;">Median $/sqft: ${formatPerSqft(analysis.medianCompPPSF)} | Mean $/sqft: ${formatPerSqft(analysis.meanCompPPSF)}</p>
   ` : ""}
-
   <h2>Filing Instructions</h2>
   <ol style="padding-left:20px;margin:12px 0;">
-    <li>File a Notice of Protest with Parker County Appraisal District by <strong>May 15</strong> (or 30 days after your notice was mailed, whichever is later).</li>
-    <li>Attend your informal hearing with this packet. Present the comparable properties showing your property is assessed above the median $/sq ft.</li>
-    <li>If the informal hearing does not resolve the issue, request a formal ARB hearing.</li>
+    <li>File a Notice of Protest with PCAD by <strong>May 15</strong> (or 30 days after notice mailed, whichever is later).</li>
+    <li>Attend your informal hearing with this packet.</li>
+    <li>If unresolved, request a formal ARB hearing.</li>
     <li>Contact PCAD: (817) 596-0077 | 1108 Santa Fe Dr, Weatherford, TX 76086</li>
   </ol>
-
   <div class="footer">
     <p>Generated by PropFight</p>
-    <p>This document is for informational purposes only and does not constitute legal or tax advice.</p>
-    <p>Data sourced from Parker County Appraisal District public records.</p>
+    <p>For informational purposes only -- not legal or tax advice.</p>
+    <p>Data from Parker County Appraisal District public records.</p>
   </div>
 </body>
 </html>`;
 
   return new NextResponse(html, {
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-    },
+    headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 }

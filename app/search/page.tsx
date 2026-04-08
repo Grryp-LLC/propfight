@@ -106,13 +106,13 @@ function SearchResults() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-600">
-                      {prop.owner_name ?? "—"}
+                      {prop.owner_name ?? "--"}
                     </td>
                     <td className="text-right py-3 px-4">
-                      {prop.improvement_sqft?.toLocaleString() ?? "—"}
+                      {prop.improvement_sqft?.toLocaleString() ?? "--"}
                     </td>
                     <td className="text-right py-3 px-4">
-                      {prop.year_built ?? "—"}
+                      {prop.year_built ?? "--"}
                     </td>
                     <td className="text-right py-3 px-4">
                       <Link

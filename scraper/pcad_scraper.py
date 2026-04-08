@@ -38,8 +38,8 @@ class PCADScraper:
     def __init__(
         self,
         db_url: str,
-        base_url: str = "https://propaccess.trueautomation.com/parkercad",
-        cad_key: str = "parkercad",
+        base_url: str = "https://www.southwestdatasolution.com",
+        cad_key: str = "PARKERCAD",
     ):
         self.db_url = db_url
         self.base_url = base_url.rstrip("/")
@@ -550,13 +550,13 @@ def main() -> None:
         "--base-url",
         default=os.getenv(
             "PCAD_BASE_URL",
-            "https://propaccess.trueautomation.com/parkercad",
+            "https://www.southwestdatasolution.com",
         ),
         help="PCAD web portal base URL",
     )
     parser.add_argument(
         "--cad-key",
-        default=os.getenv("PCAD_CAD_KEY", "parkercad"),
+        default=os.getenv("PCAD_CAD_KEY", "PARKERCAD"),
         help="CAD database key parameter",
     )
 

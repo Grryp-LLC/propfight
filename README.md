@@ -1,19 +1,19 @@
-# PropFight - Property Tax Protest Tool
+# PropFight
 
-PropFight helps Texas homeowners fight unfair property tax appraisals by finding comparable properties assessed at lower values per square foot. Currently supports Parker County (PCAD).
+Property tax protest tool for Parker County, TX homeowners. Helps you find out if your property is overappraised compared to similar properties, and generates a protest packet for the Appraisal Review Board (ARB).
 
 ## How It Works
 
-1. **Search your property** by address
-2. **Compare** your assessed $/sqft against similar homes in your subdivision
-3. **Download a protest packet** with equity analysis for your ARB hearing
+1. **Search** your address to find your property in the Parker County Appraisal District (PCAD) records
+2. **Compare** your assessed value per square foot against comparable properties in your subdivision
+3. **Protest** with a downloadable analysis showing unequal appraisal -- the strongest argument at ARB hearings
 
-The core argument is **unequal appraisal** (Texas Property Tax Code §41.43(b)(3)) — if your property is assessed higher per square foot than comparable properties, you have grounds for a reduction.
+The core argument is **unequal appraisal** (Texas Property Tax Code S41.43(b)(3)) -- if your property is assessed higher per square foot than comparable properties, you have grounds for a reduction.
 
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 4
-- **Database**: PostgreSQL (Neon) with Prisma ORM
+- **Database**: PostgreSQL (Neon) with `pg` driver
 - **Scraper**: Python (requests + BeautifulSoup) for PCAD data
 
 ## Getting Started
@@ -34,12 +34,11 @@ npm install
 cp .env.example .env
 # Edit .env with your DATABASE_URL
 
-# Generate Prisma client and push schema to database
-npm run db:generate
-npm run db:push
+# Set up database schema
+psql $DATABASE_URL -f schema.sql
 
-# Seed sample data (50 Parker County properties)
-npm run db:seed
+# Seed sample data (80 Parker County properties)
+npx tsx scripts/seed.ts
 
 # Start development server
 npm run dev
@@ -56,26 +55,23 @@ CAD_KEY=PARKERCAD
 ## Project Structure
 
 ```
-├── app/                    # Next.js App Router pages
-│   ├── page.tsx           # Landing page with search
-│   ├── about/page.tsx     # How protests work
-│   ├── property/[id]/     # Property detail + comp analysis
-│   ├── search/page.tsx    # Search results
-│   └── api/               # API routes
-│       ├── property/search/   # Address search
-│       ├── property/[id]/     # Property detail + protest packet
-│       └── scraper/lookup/    # Trigger PCAD lookup
-├── lib/
-│   ├── db.ts              # Prisma client
-│   └── protest-analysis.ts # Comp finding + protest value calculation
-├── prisma/
-│   └── schema.prisma      # Database schema
-├── scraper/
-│   ├── pcad_scraper.py    # PCAD property scraper
-│   └── requirements.txt
-├── scripts/
-│   └── seed-sample-data.ts # Sample data seeder
-└── schema.sql             # Raw SQL schema
+app/                    # Next.js App Router pages
+  page.tsx              # Landing page with search
+  about/page.tsx        # How protests work
+  property/[id]/        # Property detail + comp analysis
+  search/page.tsx       # Search results
+  api/                  # API routes
+    property/search/    # Address search
+    property/[id]/      # Property detail + protest packet
+lib/
+  db.ts                 # PostgreSQL connection pool (pg)
+  protest-analysis.ts   # Comp finding + protest value calculation
+scraper/
+  pcad_scraper.py       # PCAD property scraper
+  requirements.txt
+scripts/
+  seed.ts               # Sample data seeder
+schema.sql              # Database schema
 ```
 
 ## Scraper Usage
@@ -84,27 +80,26 @@ CAD_KEY=PARKERCAD
 cd scraper
 pip install -r requirements.txt
 
-# Look up a single address
-python pcad_scraper.py --address "SANTA FE" "301"
+# Look up by address
+python pcad_scraper.py address "Santa Fe" "301"
 
 # Fetch a specific property
-python pcad_scraper.py --id R000034732
+python pcad_scraper.py id R000034732
 
 # Bulk scrape a range
-python pcad_scraper.py --range 34700 34800
+python pcad_scraper.py range 34700 34800
 ```
 
-## Deployment
+## Deploy to Vercel
 
-Configured for Vercel deployment:
-
-```bash
-vercel
-```
+1. Push to GitHub
+2. Import the repo in Vercel
+3. Add `DATABASE_URL` environment variable
+4. Deploy
 
 ## Data Source
 
-Parker County Appraisal District (PCAD) public records via [Southwest Data Solutions](https://www.southwestdatasolution.com/webindex.aspx?dbkey=PARKERCAD).
+Parker County Appraisal District (PCAD) public records. All Texas property data is public record.
 
 ## Disclaimer
 
