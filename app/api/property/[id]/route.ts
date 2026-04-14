@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { formatStreetAddress } from "@/lib/address";
 import { query } from "@/lib/db";
 import {
   findComparables,
@@ -40,7 +41,7 @@ export async function GET(
     property_id: row.property_id,
     geo_id: row.geo_id,
     owner_name: row.owner_name,
-    situs_address: row.situs_address,
+    situs_address: formatStreetAddress(row.situs_address),
     situs_city: row.situs_city,
     situs_zip: row.situs_zip,
     legal_description: row.legal_description,
@@ -61,7 +62,7 @@ export async function GET(
 
   const subject: Property = {
     property_id: row.property_id,
-    situs_address: row.situs_address || "",
+    situs_address: formatStreetAddress(row.situs_address),
     situs_city: row.situs_city,
     subdivision: row.subdivision,
     improvement_sqft: row.improvement_sqft || 0,
@@ -88,7 +89,7 @@ export async function GET(
 
   const allProperties: Property[] = compsResult.rows.map((r: Record<string, unknown>) => ({
     property_id: r.property_id as string,
-    situs_address: (r.situs_address as string) || "",
+    situs_address: formatStreetAddress(r.situs_address as string),
     situs_city: r.situs_city as string | null,
     subdivision: r.subdivision as string | null,
     improvement_sqft: r.improvement_sqft as number,

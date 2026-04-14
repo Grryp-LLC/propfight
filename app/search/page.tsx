@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
+import { formatCityState } from "@/lib/address";
 
 interface PropertyResult {
   property_id: string;
@@ -101,8 +102,8 @@ function SearchResults() {
                     <td className="py-3 px-4">
                       <div className="font-medium">{prop.situs_address}</div>
                       <div className="text-xs text-gray-400">
-                        {prop.situs_city}
-                        {prop.situs_zip ? `, TX ${prop.situs_zip}` : ""}
+                        {formatCityState(prop.situs_city)}
+                        {prop.situs_zip ? ` ${prop.situs_zip}` : ""}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-600">

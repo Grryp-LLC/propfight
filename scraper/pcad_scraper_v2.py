@@ -84,6 +84,21 @@ def parse_money(s: str) -> float:
         return 0.0
 
 
+def normalize_situs_address(raw: str) -> str:
+    cleaned = re.sub(r"^Situs:\s*", "", raw or "").strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    if not cleaned:
+        return ""
+
+    tokens = cleaned.split(" ")
+    if tokens and re.fullmatch(r"\d+[A-Z]?", tokens[-1]):
+        house_number = tokens[-1]
+        street = " ".join(word.capitalize() for word in tokens[:-1])
+        return f"{house_number} {street}".strip()
+
+    return " ".join(word.capitalize() for word in tokens)
+
+
 def parse_property(html: str, property_id: str) -> dict | None:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -97,7 +112,7 @@ def parse_property(html: str, property_id: str) -> dict | None:
     situs_raw = text("webprop_situs")  # "Situs: SANTA FE DR   200"
 
     # Parse situs from "Situs: SANTA FE DR   200"
-    situs_address = re.sub(r"^Situs:\s*", "", situs_raw).strip() if situs_raw else ""
+    situs_address = normalize_situs_address(situs_raw)
 
     # Parse mailing address for city/state/zip
     situs_city, situs_zip = "", ""
@@ -132,6 +147,7 @@ def parse_property(html: str, property_id: str) -> dict | None:
     year_built = None
     building_class = ""
     land_sqft = 0
+    living_area_sqft = 0
 
     bld_table = soup.find("tbody", id="tableBld")
     if bld_table:
@@ -140,17 +156,33 @@ def parse_property(html: str, property_id: str) -> dict | None:
             cells = [td.get_text(strip=True) for td in row.find_all("td")]
             if len(cells) >= 5:
                 class_code = cells[1].upper()
-                # SR = Store/Retail, RES = Residential, etc.
-                # For sqft, take the main structure row (first row or largest sqft)
+                description = cells[2].upper()
                 try:
                     sqft_val = int(cells[4].replace(",", ""))
                     yr_val = int(cells[3]) if cells[3].isdigit() else None
-                    if sqft_val > improvement_sqft and class_code not in ("AS", "OP", "DK", "GR", "PT"):
+
+                    is_living_area = (
+                        class_code in ("LA", "LT", "LB", "L1", "L2")
+                        or "LIVING AREA" in description
+                    )
+                    if is_living_area:
+                        living_area_sqft += sqft_val
+                        if year_built is None and yr_val is not None:
+                            year_built = yr_val
+                        if not building_class:
+                            building_class = class_code
+
+                    if sqft_val > improvement_sqft and class_code not in ("AS", "OP", "DK", "GR", "PT", "AG"):
                         improvement_sqft = sqft_val
-                        year_built = yr_val
-                        building_class = class_code
+                        if yr_val is not None:
+                            year_built = yr_val
+                        if not building_class:
+                            building_class = class_code
                 except (ValueError, IndexError):
                     pass
+
+    if living_area_sqft > 0:
+        improvement_sqft = living_area_sqft
 
     # Land sqft from acres
     if acres > 0:

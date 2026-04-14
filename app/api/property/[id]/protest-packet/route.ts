@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { formatCityState, formatStreetAddress } from "@/lib/address";
 import { query } from "@/lib/db";
 import {
   findComparables,
@@ -36,7 +37,7 @@ export async function GET(
 
   const subject: Property = {
     property_id: row.property_id,
-    situs_address: row.situs_address || "",
+    situs_address: formatStreetAddress(row.situs_address),
     situs_city: row.situs_city,
     subdivision: row.subdivision,
     improvement_sqft: row.improvement_sqft || 0,
@@ -63,7 +64,7 @@ export async function GET(
 
   const allProperties: Property[] = compsResult.rows.map((r: Record<string, unknown>) => ({
     property_id: r.property_id as string,
-    situs_address: (r.situs_address as string) || "",
+    situs_address: formatStreetAddress(r.situs_address as string),
     situs_city: r.situs_city as string | null,
     subdivision: r.subdivision as string | null,
     improvement_sqft: r.improvement_sqft as number,
@@ -118,7 +119,7 @@ export async function GET(
   </div>
   <h2>Subject Property</h2>
   <dl class="info-grid">
-    <dt>Address</dt><dd>${property.situs_address}, ${property.situs_city || "Weatherford"}, TX ${property.situs_zip || ""}</dd>
+    <dt>Address</dt><dd>${property.situs_address}, ${formatCityState(property.situs_city)}${property.situs_zip ? ` ${property.situs_zip}` : ""}</dd>
     <dt>Property ID</dt><dd>${property.property_id}</dd>
     <dt>Subdivision</dt><dd>${property.subdivision || "N/A"}</dd>
     <dt>Year Built</dt><dd>${property.year_built || "N/A"}</dd>

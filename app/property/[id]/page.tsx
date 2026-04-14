@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { formatCityState } from "@/lib/address";
 
 interface PropertyValue {
   year: number;
@@ -147,8 +148,8 @@ export default function PropertyPage() {
                 {property.situs_address}
               </h1>
               <p className="text-gray-500">
-                {property.situs_city}
-                {property.situs_zip ? `, TX ${property.situs_zip}` : ", TX"}
+                {formatCityState(property.situs_city)}
+                {property.situs_zip ? ` ${property.situs_zip}` : ""}
               </p>
               <p className="text-sm text-gray-400 mt-1">
                 Property ID: {property.property_id}
