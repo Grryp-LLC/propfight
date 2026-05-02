@@ -119,30 +119,37 @@ def fetch_redfin_sold(zip_code: str) -> list[dict]:
             log.warning(f"No CSV data for zip {zip_code}")
             return []
 
-        reader = csv.DictReader(io.StringIO(content))
+        # Skip disclaimer lines that Redfin inserts
+        lines = content.split("\n")
+        clean_lines = [lines[0]] + [l for l in lines[1:] if not l.startswith('"In accordance')]
+        clean_content = "\n".join(clean_lines)
+
+        reader = csv.DictReader(io.StringIO(clean_content))
         sold_properties = []
 
         for row in reader:
             try:
-                sale_price = row.get("PRICE", "").replace("$", "").replace(",", "").strip()
+                price_raw = row.get("PRICE")
+                if not price_raw:
+                    continue
+                sale_price = price_raw.replace("$", "").replace(",", "").strip()
                 if not sale_price or float(sale_price) <= 0:
                     continue
 
-                address = row.get("ADDRESS", "").strip()
+                address = (row.get("ADDRESS") or "").strip()
                 if not address:
                     continue
 
-                city = row.get("CITY", "").strip()
-                zipcode = row.get("ZIP OR POSTAL CODE", "").strip() or zip_code
-                sqft_raw = row.get("SQUARE FEET", "").replace(",", "").strip()
+                city = (row.get("CITY") or "").strip()
+                zipcode = (row.get("ZIP OR POSTAL CODE") or "").strip() or zip_code
+                sqft_raw = (row.get("SQUARE FEET") or "").replace(",", "").strip()
                 sqft = int(float(sqft_raw)) if sqft_raw else None
-                beds = row.get("BEDS", "").strip()
-                baths = row.get("BATHS", "").strip()
-                year_raw = row.get("YEAR BUILT", "").strip()
-                lot_raw = row.get("LOT SIZE", "").replace(",", "").strip()
-                sold_date = row.get("SOLD DATE", "").strip()
-                home_type = row.get("PROPERTY TYPE", "").strip()
-                redfin_url = row.get("URL (SEE https://www.redfin.com/buy-a-home/comparative-market-analysis FOR INFO ON PRICING)", "").strip()
+                beds = (row.get("BEDS") or "").strip()
+                baths = (row.get("BATHS") or "").strip()
+                year_raw = (row.get("YEAR BUILT") or "").strip()
+                lot_raw = (row.get("LOT SIZE") or "").replace(",", "").strip()
+                sold_date = (row.get("SOLD DATE") or "").strip()
+                home_type = (row.get("PROPERTY TYPE") or "").strip()
 
                 # Parse sold date
                 sale_date_str = None
