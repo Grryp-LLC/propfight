@@ -10,7 +10,7 @@
         <string>/usr/bin/env</string>
         <string>bash</string>
         <string>-c</string>
-        <string>cd ~/propfight/scraper &amp;&amp; source .venv/bin/activate &amp;&amp; python refresh.py</string>
+        <string>cd ~/propfight/scraper &amp;&amp; source .venv/bin/activate &amp;&amp; python refresh.py &amp;&amp; python zillow_sold_scraper.py</string>
     </array>
 
     <key>StartCalendarInterval</key>

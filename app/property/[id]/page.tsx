@@ -49,6 +49,27 @@ interface Comparable {
   assessed_per_sqft: number;
 }
 
+interface MarketSale {
+  id: number;
+  address: string;
+  city: string;
+  sale_price: number;
+  sale_date: string;
+  sqft: number;
+  year_built: number | null;
+  price_per_sqft: number;
+}
+
+interface MarketValueAnalysis {
+  medianSalePPSF: number;
+  meanSalePPSF: number;
+  suggestedMarketValue: number;
+  potentialReduction: number;
+  estimatedTaxSavings: number;
+  isOverMarketValue: boolean;
+  recentSales: MarketSale[];
+}
+
 interface Analysis {
   subjectPPSF: number;
   medianCompPPSF: number;
@@ -58,6 +79,7 @@ interface Analysis {
   estimatedTaxSavings: number;
   isOverappraised: boolean;
   comparables: Comparable[];
+  marketValue: MarketValueAnalysis | null;
 }
 
 function fmt(n: number) {
@@ -471,6 +493,87 @@ export default function PropertyPage() {
                 </table>
               </div>
             </div>
+
+            {/* Market Value Analysis */}
+            {analysis.marketValue && (
+              <div className="bg-white rounded-xl shadow-sm p-8 mb-6 border-2 border-[#7c3aed]/20">
+                <h2 className="text-xl font-bold mb-6">
+                  Market Value Analysis
+                </h2>
+                <p className="text-sm text-gray-600 mb-6">
+                  Based on {analysis.marketValue.recentSales.length} recent sales of comparable homes in your area (last 18 months).
+                </p>
+                <div className="grid md:grid-cols-3 gap-6 mb-6">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500 mb-1">Your Appraised $/Sq Ft</p>
+                    <p
+                      className={`text-3xl font-bold ${analysis.marketValue.isOverMarketValue ? "text-[#dc2626]" : "text-gray-900"}`}
+                    >
+                      {fmtPsf(analysis.subjectPPSF)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500 mb-1">
+                      Median Sale $/Sq Ft
+                    </p>
+                    <p className="text-3xl font-bold text-[#7c3aed]">
+                      {fmtPsf(analysis.marketValue.medianSalePPSF)}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500 mb-1">Market Value Estimate</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {fmt(analysis.marketValue.suggestedMarketValue)}
+                    </p>
+                  </div>
+                </div>
+
+                {analysis.marketValue.isOverMarketValue && analysis.marketValue.potentialReduction > 0 && (
+                  <div className="bg-[#7c3aed]/5 rounded-lg p-6 text-center mb-6">
+                    <p className="text-sm text-gray-600 mb-1">
+                      Potential Tax Savings (Market Value Argument)
+                    </p>
+                    <p className="text-4xl font-extrabold text-[#7c3aed]">
+                      {fmt(analysis.marketValue.estimatedTaxSavings)}
+                      <span className="text-lg font-normal text-gray-500">
+                        /year
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Based on {fmt(analysis.marketValue.potentialReduction)} reduction at 2.5% effective tax rate
+                    </p>
+                  </div>
+                )}
+
+                {/* Recent Sales Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-gray-500">Address</th>
+                        <th className="text-right py-2 font-medium text-gray-500">Sale Price</th>
+                        <th className="text-right py-2 font-medium text-gray-500">Date</th>
+                        <th className="text-right py-2 font-medium text-gray-500">Sq Ft</th>
+                        <th className="text-right py-2 font-medium text-gray-500">$/Sq Ft</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analysis.marketValue.recentSales.map((sale) => (
+                        <tr key={sale.id} className="border-b last:border-0">
+                          <td className="py-2">{sale.address}</td>
+                          <td className="text-right py-2">{fmt(sale.sale_price)}</td>
+                          <td className="text-right py-2">
+                            {sale.sale_date ? new Date(sale.sale_date).toLocaleDateString() : "--"}
+                          </td>
+                          <td className="text-right py-2">{sale.sqft?.toLocaleString()}</td>
+                          <td className="text-right py-2 font-medium">{fmtPsf(sale.price_per_sqft)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
 

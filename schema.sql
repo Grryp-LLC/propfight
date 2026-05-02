@@ -49,3 +49,26 @@ CREATE TABLE property_exemptions (
   exemption_type    TEXT,
   exemption_amount  NUMERIC
 );
+
+CREATE TABLE market_sales (
+  id                  SERIAL PRIMARY KEY,
+  zpid                TEXT UNIQUE,
+  address             TEXT,
+  city                TEXT,
+  zip                 TEXT,
+  sale_price          NUMERIC,
+  sale_date           DATE,
+  sqft                INTEGER,
+  bedrooms            INTEGER,
+  bathrooms           NUMERIC,
+  year_built          INTEGER,
+  lot_size            NUMERIC,
+  home_type           TEXT,
+  matched_property_id TEXT REFERENCES properties(property_id),
+  source              TEXT DEFAULT 'zillow',
+  scraped_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_market_sales_matched ON market_sales(matched_property_id) WHERE matched_property_id IS NOT NULL;
+CREATE INDEX idx_market_sales_zip ON market_sales(zip);
+CREATE INDEX idx_market_sales_date ON market_sales(sale_date);

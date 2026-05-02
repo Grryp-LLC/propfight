@@ -4,6 +4,8 @@ import { query } from "@/lib/db";
 import {
   findComparables,
   calculateProtestValue,
+  findMarketComparables,
+  calculateMarketValueAnalysis,
   type Property,
 } from "@/lib/protest-analysis";
 
@@ -101,8 +103,41 @@ export async function GET(
   }));
 
   const comps = findComparables(subject, allProperties);
-  const analysis =
-    comps.length > 0 ? calculateProtestValue(subject, comps) : null;
+  let analysis = comps.length > 0 ? calculateProtestValue(subject, comps) : null;
+
+  // Fetch recent market sales for market value argument
+  const salesResult = await query(
+    `SELECT id, address, city, zip, sale_price, sale_date, sqft,
+            bedrooms, bathrooms, year_built
+     FROM market_sales
+     WHERE zip = $1
+       AND sale_price > 0
+       AND sqft > 0
+       AND sale_date >= NOW() - INTERVAL '18 months'
+     ORDER BY sale_date DESC
+     LIMIT 200`,
+    [row.situs_zip]
+  );
+
+  if (analysis && salesResult.rows.length > 0) {
+    const marketSales = salesResult.rows.map((s: Record<string, unknown>) => ({
+      id: s.id as number,
+      address: s.address as string,
+      city: s.city as string,
+      zip: s.zip as string,
+      sale_price: Number(s.sale_price),
+      sale_date: s.sale_date as string,
+      sqft: s.sqft as number,
+      bedrooms: s.bedrooms as number | null,
+      bathrooms: s.bathrooms as number | null,
+      year_built: s.year_built as number | null,
+    }));
+
+    const marketComps = findMarketComparables(subject, marketSales);
+    analysis.marketValue = calculateMarketValueAnalysis(subject, marketComps);
+  } else if (analysis) {
+    analysis.marketValue = null;
+  }
 
   return NextResponse.json({ property, analysis });
 }

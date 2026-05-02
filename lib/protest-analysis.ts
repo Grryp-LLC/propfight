@@ -17,6 +17,32 @@ export interface Comparable extends Property {
   year_diff: number;
 }
 
+export interface MarketSale {
+  id: number;
+  address: string;
+  city: string;
+  zip: string;
+  sale_price: number;
+  sale_date: string;
+  sqft: number;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  year_built: number | null;
+  price_per_sqft: number;
+  sqft_diff_pct: number;
+  year_diff: number;
+}
+
+export interface MarketValueAnalysis {
+  medianSalePPSF: number;
+  meanSalePPSF: number;
+  suggestedMarketValue: number;
+  potentialReduction: number;
+  estimatedTaxSavings: number;
+  isOverMarketValue: boolean;
+  recentSales: MarketSale[];
+}
+
 export interface ProtestAnalysis {
   subject: Property;
   subjectPPSF: number;
@@ -27,6 +53,7 @@ export interface ProtestAnalysis {
   estimatedTaxSavings: number;
   isOverappraised: boolean;
   comparables: Comparable[];
+  marketValue: MarketValueAnalysis | null;
 }
 
 function median(values: number[]): number {
@@ -146,6 +173,80 @@ export function calculateProtestValue(
     estimatedTaxSavings,
     isOverappraised,
     comparables: comps,
+  };
+}
+
+export function findMarketComparables(
+  subject: Property,
+  sales: { id: number; address: string; city: string; zip: string; sale_price: number; sale_date: string; sqft: number; bedrooms: number | null; bathrooms: number | null; year_built: number | null }[],
+  options: {
+    sqftTolerancePct?: number;
+    yearTolerance?: number;
+    maxComps?: number;
+  } = {}
+): MarketSale[] {
+  const {
+    sqftTolerancePct = 0.25,
+    yearTolerance = 10,
+    maxComps = 15,
+  } = options;
+
+  const minSqft = subject.improvement_sqft * (1 - sqftTolerancePct);
+  const maxSqft = subject.improvement_sqft * (1 + sqftTolerancePct);
+
+  const comps: MarketSale[] = [];
+
+  for (const sale of sales) {
+    if (!sale.sqft || sale.sqft <= 0) continue;
+    if (!sale.sale_price || sale.sale_price <= 0) continue;
+
+    if (sale.sqft < minSqft || sale.sqft > maxSqft) continue;
+
+    if (subject.year_built && sale.year_built) {
+      if (Math.abs(sale.year_built - subject.year_built) > yearTolerance) continue;
+    }
+
+    const price_per_sqft = sale.sale_price / sale.sqft;
+    const sqft_diff_pct = ((sale.sqft - subject.improvement_sqft) / subject.improvement_sqft) * 100;
+    const year_diff = sale.year_built && subject.year_built ? sale.year_built - subject.year_built : 0;
+
+    comps.push({
+      ...sale,
+      price_per_sqft,
+      sqft_diff_pct,
+      year_diff,
+    });
+  }
+
+  // Sort by price per sqft ascending (lowest = best for protest)
+  comps.sort((a, b) => a.price_per_sqft - b.price_per_sqft);
+
+  return comps.slice(0, maxComps);
+}
+
+export function calculateMarketValueAnalysis(
+  subject: Property,
+  sales: MarketSale[]
+): MarketValueAnalysis | null {
+  if (sales.length < 3) return null;
+
+  const ppsfs = sales.map((s) => s.price_per_sqft);
+  const medianSalePPSF = median(ppsfs);
+  const meanSalePPSF = mean(ppsfs);
+
+  const suggestedMarketValue = medianSalePPSF * subject.improvement_sqft;
+  const potentialReduction = Math.max(0, subject.total_appraised - suggestedMarketValue);
+  const estimatedTaxSavings = potentialReduction * 0.025;
+  const isOverMarketValue = subject.total_appraised > suggestedMarketValue;
+
+  return {
+    medianSalePPSF,
+    meanSalePPSF,
+    suggestedMarketValue,
+    potentialReduction,
+    estimatedTaxSavings,
+    isOverMarketValue,
+    recentSales: sales,
   };
 }
 
