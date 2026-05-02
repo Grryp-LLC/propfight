@@ -173,6 +173,7 @@ export function calculateProtestValue(
     estimatedTaxSavings,
     isOverappraised,
     comparables: comps,
+    marketValue: null,
   };
 }
 
